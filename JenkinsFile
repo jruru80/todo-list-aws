@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+    stages {
+        stage('Get Code'){
+            steps {
+                echo 'Trayendo codigo del repo'
+                git branch: 'feature/ci_prueba', url: 'https://github.com/jruru80/todo-list-aws'
+                sh 'ls -la'
+                echo 'Workspace'
+                echo WORKSPACE 
+            }
+        }
+        stage('Deploy'){
+            steps {
+                sh '''
+                    sam build
+                    sam deploy template.yaml --config-env staging --no-confirm-changeset --force-upload --no-fail-on-empty-changeset
+                '''
+            }
+        }
+        stage('Static'){
+            steps {
+                catchError(buildResult : 'UNSTABLE', stageResult: 'UNSTABLE'){
+                    sh '''
+                        export PYTHONPATH=.
+                        python3 -m flake8 --format=pylint --exit-zero src/* > flake8.out
+                    '''
+                    recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], \
+                    qualityGates : [[threshold:8, type: 'TOTAL', unstable: true], \
+                    [threshold: 10, type: 'TOTAL', unstable: false]]
+                }
+            }
+        }
+        stage('Security'){
+            steps {
+                catchError(buildResult : 'UNSTABLE', stageResult: 'UNSTABLE'){
+                    sh '''
+                        bandit --exit-zero -r . -f custom -o bandit.out \
+                        --msg-template "{relpath}:{line}: [{test_id}] {msg}"
+                    '''
+                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], \
+                    qualityGates : [[threshold:2, type: 'TOTAL', unstable: true], \
+                    [threshold: 4, type: 'TOTAL', unstable: false]]
+                }
+            }
+        }
+        stage('Rest Tests'){
+            steps {
+                script{
+                   def BASE_URL = sh (
+                        script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true
+                    ).trim()
+                    env.BASE_URL = BASE_URL
+                    echo('env.BASE_URL')
+                    echo(env.BASE_URL)
+                }
+                echo 'Initiating Integration Tests'
+                sh '''
+                    export PYTHONPATH=.
+                    pytest --junitxml=result-integration.xml test/integration/todoApiTest.py
+                '''
+            }
+        }
+    }
+}
