@@ -4,7 +4,7 @@ pipeline {
         stage('Get Code'){
             steps {
                 echo 'Trayendo codigo del repo'
-                git branch: 'feature/ci_prueba', url: 'https://github.com/jruru80/todo-list-aws'
+                git branch: 'feature/ci_prueba', url: 'https://github.com/jruru80/todo-list-aws', credentialsId: 'token'
                 sh 'ls -la'
                 echo 'Workspace'
                 echo WORKSPACE 
@@ -60,13 +60,6 @@ pipeline {
         }
         stage('Promote'){
             steps {
-                checkout scmGit(
-                    branches: [[name: 'develop']],
-                    userRemoteConfigs: [
-                        [credentialsId:  'token',
-                        url: 'https://github.com/jruru80/todo-list-aws']
-                    ]
-                )
                 echo('Discard generates files before checkout develop')
                 sh ('git clean -f')
                 echo('tracking develop and merge from feature')
