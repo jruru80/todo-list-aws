@@ -4,7 +4,6 @@ import todoList
 
 
 def create(event, context):
-    pasword = "1234"
     data = json.loads(event['body'])
     if 'text' not in data:
         logging.error("Validation failed")
