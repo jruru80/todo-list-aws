@@ -2,9 +2,17 @@ pipeline {
     agent any
     stages {
         stage('Get Code'){
+            environment {
+                URI_GITHUB = ''
+            }
             steps {
                 echo 'Trayendo codigo del repo'
-                git branch: 'feature/ci_prueba', url: 'https://github.com/jruru80/todo-list-aws', credentialsId: 'token'
+                withCredentials([string(credentialsId: 'token', variable: 'token')]) {
+                    script {
+                     URI_GITHUB = 'https://'+token+'@github.com/jruru80/todo-list-aws'
+                    }
+                    git branch: 'feature/ci_prueba', url: URI_GITHUB
+                }
                 sh 'ls -la'
                 echo 'Workspace'
                 echo WORKSPACE 
