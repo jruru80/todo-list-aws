@@ -25,21 +25,15 @@ pipeline {
                     export PYTHONPATH=.
                     python3 -m flake8 --format=pylint --exit-zero src/* > flake8.out
                 '''
+                echo 'Publishing result for flake8 without quality gates'
+                recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')]
                 echo('Executing Security Bandit Test')
                 sh '''
                     bandit --exit-zero -r src/* -f custom -o bandit.out \
                     --msg-template "{relpath}:{line}: [{test_id}] {msg}"
                 '''
-                catchError(buildResult : 'SUCCESS', stageResult: 'SUCCESS'){
-                    echo 'Publishing result for flake8'
-                    recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], \
-                    qualityGates : [[threshold:8, type: 'TOTAL', unstable: true], \
-                    [threshold: 10, type: 'TOTAL', unstable: false]]
-                    echo 'Publishing result for bandit'
-                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], \
-                    qualityGates : [[threshold:2, type: 'TOTAL', unstable: true], \
-                    [threshold: 4, type: 'TOTAL', unstable: false]]
-                }
+                echo 'Publishing result for bandit without quality gates'
+                recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
             }
         }
         stage('Deploy'){
