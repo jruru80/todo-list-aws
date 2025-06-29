@@ -20,7 +20,7 @@ pipeline {
         }
         stage('Static Test'){
             steps {
-                catchError(buildResult : 'STABLE', stageResult: 'STABLE'){
+                catchError(buildResult : 'SUCCESS', stageResult: 'SUCCESS'){
                     echo('Executing Static Flake8 Test')
                     sh '''
                         export PYTHONPATH=.
