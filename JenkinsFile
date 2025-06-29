@@ -64,6 +64,8 @@ pipeline {
                     export PYTHONPATH=.
                     pytest --junitxml=result-integration.xml test/integration/todoApiTest.py
                 '''
+                echo 'Publishing integration tests results'
+                junit 'result-integration.xml'
             }
         }
         stage('Promote'){
