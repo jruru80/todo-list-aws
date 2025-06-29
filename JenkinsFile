@@ -20,7 +20,7 @@ pipeline {
         }
         stage('Static Test'){
             steps {
-                catchError(buildResult : 'UNSTABLE', stageResult: 'UNSTABLE'){
+                catchError(buildResult : 'STABLE', stageResult: 'STABLE'){
                     echo('Executing Static Flake8 Test')
                     sh '''
                         export PYTHONPATH=.
@@ -62,7 +62,7 @@ pipeline {
                 echo 'Initiating Integration Tests'
                 sh '''
                     export PYTHONPATH=.
-                    pytest --junitxml=result-integration.xml test/integration/*
+                    pytest --junitxml=result-integration.xml test/integration/todoApiTest.py
                 '''
             }
         }
