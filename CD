@@ -1,0 +1,49 @@
+pipeline {
+    agent any
+    stages {
+        stage('Get Code'){
+            steps {
+                echo 'Trayendo codigo del repo'
+                git branch: 'master', url: 'https://github.com/jruru80/todo-list-aws.git'
+                sh 'ls -la'
+                echo 'Workspace'
+                echo WORKSPACE 
+            }
+        }
+        stage('Deploy'){
+            steps {
+                sh '''
+                    sam build
+                    sam deploy template.yaml --config-env production --no-confirm-changeset --force-upload --no-fail-on-empty-changeset
+                '''
+            }
+        }
+        stage('Rest Test'){
+            steps {
+                script{
+                   def BASE_URL = sh (
+                        script: "aws cloudformation describe-stacks --stack-name todo-list-aws-production --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true
+                    ).trim()
+                    env.BASE_URL = BASE_URL
+                    echo('env.BASE_URL')
+                    echo(env.BASE_URL)
+                }
+                echo 'Initiating Integration Tests'
+                sh '''
+                    export PYTHONPATH=.
+                    pytest --junitxml=result-integration.xml test/integration/todoApiTest.py \
+                    -k 'api_gettodo or api_listtodos'
+                '''
+                echo 'Publishing integration tests results'
+                junit 'result-integration.xml'
+            }
+        }
+    }
+    post { 
+        always { 
+            echo 'Clean env: delete dir'
+            cleanWs()
+        }
+    }
+}
