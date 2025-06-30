@@ -74,6 +74,7 @@ pipeline {
                 sh ('git clean -f')
                 echo('tracking master and merge from develop')
                 sh '''
+                    git config --global merge.ours.driver true
                     git checkout master
                     git merge develop
                     git push

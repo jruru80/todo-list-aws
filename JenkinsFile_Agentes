@@ -102,6 +102,7 @@ pipeline {
                     git branch: 'master', url: URI_GITHUB
                 }
                 sh '''
+                    git config --global merge.ours.driver true
                     git merge origin/develop
                     git push --set-upstream origin master
                 '''
