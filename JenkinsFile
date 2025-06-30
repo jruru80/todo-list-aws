@@ -71,8 +71,10 @@ pipeline {
         stage('Promote'){
             steps {
                 echo('Discard generates files before checkout master')
+                sh ('git clean -f')
                 echo('tracking master and merge from develop')
                 sh '''
+                    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
                     git checkout master
                     git config --global merge.ours.driver true
                     git merge develop
