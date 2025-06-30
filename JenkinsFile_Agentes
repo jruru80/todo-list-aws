@@ -17,7 +17,6 @@ pipeline {
                 stash includes: 'test/**/*', name: 'test'
                 stash includes: 'samconfig.toml', name: 'samconfig'
                 stash includes: 'template.yaml', name: 'template'
-                stash includes: '**/*', name: 'all'
             }
         }
         stage('Static Test'){
@@ -50,6 +49,7 @@ pipeline {
             }
             steps {
                 unstash 'app'
+                unstash 'samconfig'
                 unstash 'template'
                 sh '''
                     sam build
