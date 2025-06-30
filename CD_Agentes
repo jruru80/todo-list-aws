@@ -1,0 +1,76 @@
+pipeline {
+    agent none
+    stages {
+        stage('Get Code'){
+            agent {
+                label 'linux'
+            }
+            steps {
+                echo 'Trayendo codigo del repo'
+                git branch: 'master', url: 'https://github.com/jruru80/todo-list-aws.git'
+                sh 'ls -la'
+                echo 'Workspace'
+                echo WORKSPACE 
+                sh 'whoami'
+                sh 'hostname'
+                stash includes: 'src/**/*', name:'app'
+                stash includes: 'test/**/*', name: 'test'
+                stash includes: 'samconfig.toml', name: 'samconfig'
+                stash includes: 'template.yaml', name: 'template'
+            }
+        }
+        stage('Deploy'){
+            agent {
+                label 'linux'
+            }
+            steps {
+                unstash 'app'
+                unstash 'samconfig'
+                unstash 'template'
+                sh '''
+                    sam build
+                    sam deploy template.yaml --config-env production --no-confirm-changeset --force-upload --no-fail-on-empty-changeset
+                '''
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+        stage('Rest Test'){
+            agent {
+                label 'pytest'
+            }
+            steps {
+                script{
+                   def BASE_URL = sh (
+                        script: "aws cloudformation describe-stacks --stack-name todo-list-aws-production --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true
+                    ).trim()
+                    env.BASE_URL = BASE_URL
+                    echo('env.BASE_URL')
+                    echo(env.BASE_URL)
+                }
+                echo 'Initiating Integration Tests'
+                sh '''
+                    export PYTHONPATH=.
+                    pytest --junitxml=result-integration.xml test/integration/todoApiTest.py \
+                    -k 'api_gettodo or api_listtodos'
+                '''
+                echo 'Publishing integration tests results'
+                junit 'result-integration.xml'
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+    }
+    post { 
+        always { 
+            node('agent1') {
+                label 'linux'
+                echo 'Clean env: delete dir'
+                cleanWs()
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+    }
+}
