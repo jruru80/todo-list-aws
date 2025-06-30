@@ -1,0 +1,124 @@
+pipeline {
+    agent none
+    stages {
+        stage('Get Code'){
+            agent {
+                label 'linux'
+            }
+            steps {
+                echo 'Trayendo codigo del repo'
+                git branch: 'develop', url: 'https://github.com/jruru80/todo-list-aws.git'
+                sh 'ls -la'
+                echo 'Workspace'
+                echo WORKSPACE 
+                sh 'whoami'
+                sh 'hostname'
+                stash includes: 'src/**/*', name:'app'
+                stash includes: 'test/**/*', name: 'test'
+                stash includes: 'samconfig.toml', name: 'samconfig'
+                stash includes: 'template.yaml', name: 'template'
+                stash includes: '**/*', name: 'all'
+            }
+        }
+        stage('Static Test'){
+            agent {
+                label 'static'
+            }
+            steps {
+                unstash 'app'
+                echo('Executing Static Flake8 Test')
+                sh '''
+                    export PYTHONPATH=.
+                    python3 -m flake8 --format=pylint --exit-zero src/* > flake8.out
+                '''
+                echo 'Publishing result for flake8 without quality gates'
+                recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')]
+                echo('Executing Security Bandit Test')
+                sh '''
+                    bandit --exit-zero -r src/* -f custom -o bandit.out \
+                    --msg-template "{relpath}:{line}: [{test_id}] {msg}"
+                '''
+                echo 'Publishing result for bandit without quality gates'
+                recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+        stage('Deploy'){
+            agent {
+                label 'linux'
+            }
+            steps {
+                unstash 'app'
+                unstash 'template'
+                sh '''
+                    sam build
+                    sam deploy template.yaml --config-env staging --no-confirm-changeset --force-upload --no-fail-on-empty-changeset
+                '''
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+        stage('Rest Test'){
+            agent {
+                label 'pytest'
+            }
+            steps {
+                unstash 'test'
+                unstash 'template'
+                script{
+                   def BASE_URL = sh (
+                        script: "aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text",
+                        returnStdout: true
+                    ).trim()
+                    env.BASE_URL = BASE_URL
+                    echo('env.BASE_URL')
+                    echo(env.BASE_URL)
+                }
+                echo 'Initiating Integration Tests'
+                sh '''
+                    export PYTHONPATH=.
+                    pytest --junitxml=result-integration.xml test/integration/todoApiTest.py
+                '''
+                echo 'Publishing integration tests results'
+                junit 'result-integration.xml'
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+        stage('Promote'){
+            agent {
+                label 'pytest'
+            }
+            environment {
+                def URI_GITHUB = ''
+            }
+            steps {
+                echo 'Trayendo codigo de master autenticado'
+                withCredentials([string(credentialsId: 'token', variable: 'token')]) {
+                    script {
+                     URI_GITHUB = 'https://'+token+'@github.com/jruru80/todo-list-aws'
+                    }
+                    git branch: 'master', url: URI_GITHUB
+                }
+                sh '''
+                    git merge origin/develop
+                    git push --set-upstream origin master
+                '''
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+    }
+    post { 
+        always { 
+            node('agent1') {
+                label 'linux'
+                echo 'Clean env: delete dir'
+                cleanWs()
+                sh 'whoami'
+                sh 'hostname'
+            }
+        }
+    }
+}
