@@ -88,7 +88,7 @@ pipeline {
         }
         stage('Promote'){
             agent {
-                label 'pytest'
+                label 'linux'
             }
             environment {
                 def URI_GITHUB = ''
@@ -113,7 +113,6 @@ pipeline {
     post { 
         always { 
             node('agent1') {
-                label 'linux'
                 echo 'Clean env: delete dir'
                 cleanWs()
                 sh 'whoami'
