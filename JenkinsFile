@@ -16,7 +16,7 @@ pipeline {
                 echo 'Descargando samconfig para staging y sobreescribiendo'
                 sh ('wget -q https://raw.githubusercontent.com/jruru80/todo-list-aws-config/refs/heads/staging/samconfig.toml -O samconfig.toml')
                 sh 'ls -la'
-                echo 'Vemos el contenido de samconfig obtenido del repo solo con la configuración de staging'
+                echo 'Vemos el contenido de samconfig obtenido del repo solo con la configuración de stagingg'
                 sh 'cat samconfig.toml'
                 echo 'Workspace'
                 echo WORKSPACE 
