@@ -75,7 +75,7 @@ pipeline {
                 echo('tracking master and merge from develop')
                 sh '''
                     git config --global merge.ours.driver true
-                    git checkout master
+                    git checkout origin master
                     git merge develop
                     git push
                 '''
